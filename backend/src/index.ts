@@ -40,7 +40,7 @@ app.post('/reset-password', (req,res)=>{
             console.log(emailPassword);
             
             return res.status(200).json({
-                msg:'The password has been updated'
+                msg:`The password has been updated for ${email}, new password is ${newpassword}`
             })
         }else{
             return res.status(400).json({
