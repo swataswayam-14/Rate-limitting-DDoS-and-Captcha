@@ -2,6 +2,10 @@ import express from "express";
 const app = express();
 const PORT = 3000;
 import rateLimit from 'express-rate-limit';
+import cors from "cors";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 
 let otpDB: Record<string, string> = {};
@@ -29,6 +33,7 @@ const passwordResetLimiter = rateLimit({
 
 
 app.use(express.json());
+app.use(cors());
 
 app.post('/getotp',otpLimiter,  (req,res)=>{
     const email = req.body.email;
@@ -52,27 +57,38 @@ app.post('/getotp',otpLimiter,  (req,res)=>{
     }
 })
 
-app.post('/reset-password', passwordResetLimiter, (req,res)=>{
-    const {email , newpassword , otp} = req.body;
-    if(email && newpassword && otp){
-        if(otpDB[email] === otp){
-            emailPassword[email] = newpassword;
-            console.log(emailPassword);
-            
-            return res.status(200).json({
-                msg:`The password has been updated for ${email}, new password is ${newpassword}`
-            })
-        }else{
-            return res.status(400).json({
-                msg:'Invalid otp or email'
-            })
-        }
-    }else{
-        return  res.status(400).json({
-            msg:'Invalid input'
-        })
+app.post('/reset-password', passwordResetLimiter, async (req, res) => {
+    const { email, newpassword, otp, token } = req.body;
+    if (email && newpassword && otp && token) {
+      const secret:any = process.env.SECRET;
+      let formData = new FormData();
+      formData.append('secret', secret);
+      formData.append('response', token);
+  
+      const url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+      const result = await fetch(url, {
+        body: formData,
+        method: 'POST'
+      });
+      
+      const data = await result.json();
+  
+      if (data.success && otpDB[email] === otp) {
+        emailPassword[email] = newpassword;
+        return res.status(200).json({
+          msg: `The password has been updated for ${email}, new password is ${newpassword}`
+        });
+      } else {
+        return res.status(400).json({
+          msg: 'Invalid OTP, email, or token'
+        });
+      }
+    } else {
+      return res.status(400).json({
+        msg: 'Invalid input'
+      });
     }
-})
+  });
 
 app.post('/login', (req, res)=>{
     const [email, password] = req.body;
