@@ -1,6 +1,7 @@
 import express from "express";
 const app = express();
 const PORT = 3000;
+import rateLimit from 'express-rate-limit';
 
 
 let otpDB: Record<string, string> = {};
@@ -8,9 +9,28 @@ let emailPassword : Record<string, string> = {};
 
 const details:string = "this is the thing that you get when you subscribe the course";
 
+const otpLimiter = rateLimit({
+    windowMs: 5*60*1000, // 5 mins
+    max:3, //limiting each ip to 3 otp requests per windowMs
+    message:'Too many requests , please try again after 5 minutes',
+    standardHeaders:true,
+    legacyHeaders:false
+})
+
+const passwordResetLimiter = rateLimit({
+    windowMs: 15*60*1000 , //15 mins
+    max:5,
+    message:'Too many password reset attempts , please try again after 15 mins',
+    standardHeaders:true,
+    legacyHeaders:false
+})
+
+
+
+
 app.use(express.json());
 
-app.post('/getotp', (req,res)=>{
+app.post('/getotp',otpLimiter,  (req,res)=>{
     const email = req.body.email;
     if(email){
         const otp = Math.floor((100000 + (Math.random() * 900000))).toString();
@@ -32,7 +52,7 @@ app.post('/getotp', (req,res)=>{
     }
 })
 
-app.post('/reset-password', (req,res)=>{
+app.post('/reset-password', passwordResetLimiter, (req,res)=>{
     const {email , newpassword , otp} = req.body;
     if(email && newpassword && otp){
         if(otpDB[email] === otp){
